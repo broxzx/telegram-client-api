@@ -1,7 +1,6 @@
 package com.project.telegramclientapi;
 
-import com.project.telegramclientapi.telegram.Example;
-import com.project.telegramclientapi.telegram.Telegram;
+import com.project.telegramclientapi.telegram.v2.utils.BotInitializer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -17,9 +16,9 @@ public class TelegramClientApiApplication {
     }
 
     @Bean
-    public CommandLineRunner commandLineRunner(Example telegram) {
+    public CommandLineRunner commandLineRunner(BotInitializer botInitializer) {
         return args -> {
-              telegram.init();
+              botInitializer.run();
         };
     }
 
