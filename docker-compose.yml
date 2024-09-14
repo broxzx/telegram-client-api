@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  tg-client-api-mongodb:
+    container_name: tg-client-api-mongodb
+    image: mongo:7.0-jammy
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: tg-client
+    volumes:
+      - tg-client-api-mongodb:/data/db
+
+volumes:
+  tg-client-api-mongodb:
