@@ -1,20 +1,20 @@
-package com.project.telegramclientapi.telegram.v2.utils;
+package com.project.telegramclientapi.telegram.v2.telegram;
 
-import it.tdlight.client.AuthenticationSupplier;
 import it.tdlight.client.SimpleAuthenticationSupplier;
 import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.jni.TdApi;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class TelegramApp {
 
     @Getter
     private final SimpleTelegramClient client;
-
     private final long adminId;
 
     private void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
@@ -30,9 +30,25 @@ public class TelegramApp {
         }
     }
 
-    private void onUpdateHandler(TdApi.Object object) {
-        TdApi.Update update = (TdApi.Update) object;
-        log.info(update.toString());
+    private void onUpdateHandler(TdApi.UpdateNewMessage incomingMessage) {
+        TdApi.Message message = incomingMessage.message;
+        TdApi.MessageContent messageContent = message.content;
+
+        String textValue = extractText(messageContent.toString());
+
+//        log.info("getAll: {}", chatRepository.findAll());
+        System.out.println("textValue " + textValue);
+    }
+
+    public String extractText(String rawData) {
+        Pattern pattern = Pattern.compile("text = \"([^\"]+)\"");
+        Matcher matcher = pattern.matcher(rawData);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        } else {
+            return null;
+        }
     }
 
     private void onStopCommand(TdApi.Chat chat, TdApi.MessageSender commandSender, String arguments) {
@@ -50,14 +66,14 @@ public class TelegramApp {
         }
     }
 
-    public TelegramApp(SimpleTelegramClientBuilder clientBuilder, long adminId, String phoneNumber) {
-        SimpleAuthenticationSupplier<?> authenticationData = AuthenticationSupplier.user(phoneNumber);
+    public TelegramApp(SimpleTelegramClientBuilder clientBuilder,
+                       SimpleAuthenticationSupplier<?> authenticationData,
+                       long adminId) {
         this.adminId = adminId;
         clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
         clientBuilder.addCommandHandler("stop", this::onStopCommand);
         clientBuilder.addUpdateHandler(TdApi.UpdateNewMessage.class, this::onUpdateHandler);
         this.client = clientBuilder.build(authenticationData);
     }
-
 
 }
