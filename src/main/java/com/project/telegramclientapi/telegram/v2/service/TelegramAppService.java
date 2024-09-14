@@ -1,51 +1,34 @@
 package com.project.telegramclientapi.telegram.v2.service;
 
+import it.tdlight.Init;
 import it.tdlight.Log;
 import it.tdlight.Slf4JLogMessageHandler;
-import it.tdlight.jni.TdApi;
+import it.tdlight.util.UnsupportedNativeLibraryException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
-
-@Component
+@Service
+@RequiredArgsConstructor
 @Slf4j
 public class TelegramAppService {
 
-    private final TelegramClientService clientService;
+    private final TelegramClientService telegramClientService;
 
-    @Value("${telegram.adminId}")
-    private long adminId;
-
-    public TelegramAppService(TelegramClientService clientService) {
-        this.clientService = clientService;
-    }
-
-    public void run() throws Exception {
-        TdApi.User currentUser = clientService.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
-        log.info("Logged in as: {}", currentUser.firstName);
-
+    public void initialize() {
+        long adminId = Integer.getInteger("it.tdlight.example.adminid", 667900586);
+        initializedNativeClasses();
         Log.setLogMessageHandler(1, new Slf4JLogMessageHandler());
 
-        clientService.sendMessageToSavedMessages(currentUser.id, "Hello from Telegram Bot!");
+        telegramClientService.adjustTelegramClient(adminId);
     }
 
-    private void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
-        TdApi.AuthorizationState authorizationState = update.authorizationState;
-        switch (authorizationState.getConstructor()) {
-            case TdApi.AuthorizationStateReady.CONSTRUCTOR:
-                log.info("Authorization successful!");
-                break;
-            case TdApi.AuthorizationStateLoggingOut.CONSTRUCTOR:
-                log.info("Logging out...");
-                break;
-            case TdApi.AuthorizationStateClosed.CONSTRUCTOR:
-                log.info("Session closed.");
-                break;
-            default:
-                log.info("Unhandled state: {}", authorizationState);
+    private void initializedNativeClasses() {
+        try {
+            Init.init();
+        } catch (UnsupportedNativeLibraryException e) {
+            log.error(e.getMessage());
+            throw new RuntimeException(e);
         }
     }
-
 }

@@ -6,7 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
-public class TelegramConfig {
+@Getter
+public class TelegramConfiguration {
 
     @Value("${telegram.apiId}")
     private int apiId;
@@ -14,7 +15,6 @@ public class TelegramConfig {
     @Value("${telegram.apiHash}")
     private String apiHash;
 
-    @Getter
     @Value("${telegram.phoneNumber}")
     private String phoneNumber;
 

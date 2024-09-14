@@ -1,55 +1,59 @@
 package com.project.telegramclientapi.telegram.v2.service;
 
-import com.project.telegramclientapi.telegram.v2.config.TelegramConfig;
-import it.tdlight.client.*;
+import com.project.telegramclientapi.telegram.v2.config.TelegramConfiguration;
+import com.project.telegramclientapi.telegram.v2.utils.TelegramApp;
+import it.tdlight.client.APIToken;
+import it.tdlight.client.SimpleTelegramClientBuilder;
+import it.tdlight.client.SimpleTelegramClientFactory;
+import it.tdlight.client.TDLibSettings;
 import it.tdlight.jni.TdApi;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-@Getter
 @Service
-@Slf4j
+@RequiredArgsConstructor
 public class TelegramClientService {
 
-    private final SimpleTelegramClient client;
+    private final TelegramConfiguration telegramConfiguration;
 
-    public TelegramClientService(TelegramConfig config) {
-        this.client = createTelegramClient(config);
-    }
-
-    private SimpleTelegramClient createTelegramClient(TelegramConfig config) {
+    @SneakyThrows
+    public void adjustTelegramClient(long adminId) {
         try (SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory()) {
-            APIToken apiToken = config.getApiToken();
-            TDLibSettings settings = TDLibSettings.create(apiToken);
+            SimpleTelegramClientBuilder clientBuilder = adjustClient(clientFactory);
+            TelegramApp app = new TelegramApp(clientBuilder, adminId, telegramConfiguration.getPhoneNumber());
 
-            Path sessionPath = Paths.get("tdlib-session-id-fyuizee");
-            settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
-            settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
-
-            SimpleTelegramClientBuilder clientBuilder = clientFactory.builder(settings);
-            return clientBuilder.build(AuthenticationSupplier.user(config.getPhoneNumber()));
-        } catch (Exception e) {
-            log.error("Error initializing Telegram client", e);
-            throw new RuntimeException("Failed to initialize Telegram client", e);
+            TdApi.User me = app.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
+            sendMessageToFavourite(me, app);
         }
     }
 
-    public void sendMessageToSavedMessages(long userId, String messageText) throws Exception {
-        TdApi.Chat savedMessagesChat = client.send(new TdApi.CreatePrivateChat(userId, true)).get(1, TimeUnit.MINUTES);
-        TdApi.SendMessage sendMessage = new TdApi.SendMessage();
-        sendMessage.chatId = savedMessagesChat.id;
+    private SimpleTelegramClientBuilder adjustClient(SimpleTelegramClientFactory clientFactory) {
+        APIToken apiToken = telegramConfiguration.getApiToken();
+        TDLibSettings settings = TDLibSettings.create(apiToken);
 
-        TdApi.InputMessageText inputMessageText = new TdApi.InputMessageText();
-        inputMessageText.text = new TdApi.FormattedText(messageText, new TdApi.TextEntity[0]);
-        sendMessage.inputMessageContent = inputMessageText;
+        Path sessionPath = Paths.get("tdlib-session-id-fyuizee");
+        settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
+        settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
-        TdApi.Message result = client.sendMessage(sendMessage, true).get(1, TimeUnit.MINUTES);
-        log.info("sendMessageToSavedMessages: {}", result);
+        return clientFactory.builder(settings);
+    }
+
+    private void sendMessageToFavourite(TdApi.User me, TelegramApp app) throws InterruptedException, ExecutionException, TimeoutException {
+        TdApi.Chat savedMessagesChat = app.getClient().send(new TdApi.CreatePrivateChat(me.id, true)).get(1, TimeUnit.MINUTES);
+        TdApi.SendMessage req = new TdApi.SendMessage();
+        req.chatId = savedMessagesChat.id;
+        TdApi.InputMessageText txt = new TdApi.InputMessageText();
+        txt.text = new TdApi.FormattedText("TDLight test", new TdApi.TextEntity[0]);
+        req.inputMessageContent = txt;
+        TdApi.Message result = app.getClient().sendMessage(req, true).get(1, TimeUnit.MINUTES);
+        System.out.println("Sent message:" + result);
     }
 
 }
