@@ -6,7 +6,7 @@ import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.client.SimpleTelegramClientFactory;
 import it.tdlight.jni.TdApi;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ExecutionException;
@@ -15,18 +15,22 @@ import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TelegramClientService {
 
     private final TelegramConfiguration telegramConfiguration;
     private final SimpleTelegramClientBuilder clientBuilder;
 
-    @SneakyThrows
     public void adjustTelegramClient(long adminId) {
         try (SimpleTelegramClientFactory ignored = new SimpleTelegramClientFactory()) {
             TelegramApp app = AuthenticationService.initiateTelegramApp(clientBuilder, telegramConfiguration.getPhoneNumber(), adminId);
 
-            TdApi.User me = app.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
-            sendMessageToFavourite(me, app);
+            try {
+                TdApi.User me = app.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
+                sendMessageToFavourite(me, app);
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
         }
     }
 

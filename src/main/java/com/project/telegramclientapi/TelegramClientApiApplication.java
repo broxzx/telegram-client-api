@@ -18,7 +18,7 @@ public class TelegramClientApiApplication {
     @Bean
     public CommandLineRunner commandLineRunner(TelegramAppService telegramAppService) {
         return args -> {
-              telegramAppService.initialize();
+            telegramAppService.initialize();
         };
     }
 

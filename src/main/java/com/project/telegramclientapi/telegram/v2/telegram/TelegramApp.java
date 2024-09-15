@@ -6,11 +6,14 @@ import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.jni.TdApi;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
+@Component
 public class TelegramApp {
 
     @Getter
@@ -36,7 +39,7 @@ public class TelegramApp {
 
         String textValue = extractText(messageContent.toString());
 
-//        log.info("getAll: {}", chatRepository.findAll());
+        log.info(incomingMessage.toString());
         System.out.println("textValue " + textValue);
     }
 
@@ -68,7 +71,7 @@ public class TelegramApp {
 
     public TelegramApp(SimpleTelegramClientBuilder clientBuilder,
                        SimpleAuthenticationSupplier<?> authenticationData,
-                       long adminId) {
+                       @Qualifier("adminId") long adminId) {
         this.adminId = adminId;
         clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
         clientBuilder.addCommandHandler("stop", this::onStopCommand);

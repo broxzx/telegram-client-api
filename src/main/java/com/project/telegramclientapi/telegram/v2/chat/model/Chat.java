@@ -17,10 +17,12 @@ public class Chat {
 
     private String senderId;
 
+    private String chatId;
+
     private String text;
 
     private Long time;
 
-    private String restMetaData;
+    private String restData;
 
 }

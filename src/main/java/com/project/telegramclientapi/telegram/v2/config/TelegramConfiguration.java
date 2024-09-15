@@ -1,10 +1,8 @@
 package com.project.telegramclientapi.telegram.v2.config;
 
-import it.tdlight.client.APIToken;
-import it.tdlight.client.SimpleTelegramClientBuilder;
-import it.tdlight.client.SimpleTelegramClientFactory;
-import it.tdlight.client.TDLibSettings;
+import it.tdlight.client.*;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +23,9 @@ public class TelegramConfiguration {
     @Value("${telegram.phoneNumber}")
     private String phoneNumber;
 
+    @Value("${telegram.adminId}")
+    private long adminId;
+
     public APIToken getApiToken() {
         return new APIToken(apiId, apiHash);
     }
@@ -43,4 +44,20 @@ public class TelegramConfiguration {
         }
     }
 
+    @Bean
+    public SimpleAuthenticationSupplier<?> simpleAuthenticationSupplier() {
+        return AuthenticationSupplier.user(this.phoneNumber);
+    }
+
+    @Bean
+    @Qualifier("adminId")
+    public long adminId() {
+        return this.adminId;
+    }
+
+    @Bean
+    @Qualifier("phoneNumber")
+    public String phoneNumber() {
+        return this.phoneNumber;
+    }
 }
