@@ -36,7 +36,7 @@ public class TelegramConfiguration {
             APIToken apiToken = getApiToken();
             TDLibSettings settings = TDLibSettings.create(apiToken);
 
-            Path sessionPath = Paths.get("tdlib-session-id-fyuizee");
+            Path sessionPath = Paths.get("./src/main/resources/tdlib-session-id-fyuizee");
             settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
             settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
