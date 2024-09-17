@@ -16,11 +16,10 @@ public class TelegramAppService {
     private final TelegramClientService telegramClientService;
 
     public void initialize() {
-        long adminId = Integer.getInteger("it.tdlight.example.adminid", 667900586);
         initializedNativeClasses();
         Log.setLogMessageHandler(1, new Slf4JLogMessageHandler());
 
-        telegramClientService.adjustTelegramClient(adminId);
+        telegramClientService.adjustTelegramClient();
     }
 
     private void initializedNativeClasses() {

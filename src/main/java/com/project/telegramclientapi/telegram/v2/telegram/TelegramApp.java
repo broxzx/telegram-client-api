@@ -8,16 +8,17 @@ import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.jni.TdApi;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
@@ -25,8 +26,8 @@ public class TelegramApp {
 
     @Getter
     private final SimpleTelegramClient client;
-    private final long adminId;
-    private final ChatRepository chatRepository;
+    private long adminId;
+    private ChatRepository chatRepository;
 
     private void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
         TdApi.AuthorizationState authorizationState = update.authorizationState;
@@ -45,14 +46,15 @@ public class TelegramApp {
         TdApi.Message message = incomingMessage.message;
         TdApi.MessageContent messageContent = message.content;
 
-        String senderId = "", chatId = String.valueOf(message.chatId), text = "";
+        String senderId, chatId = String.valueOf(message.chatId), text = "";
         int time = message.date;
         List<byte[]> images = new ArrayList<>();
         List<String> pathToFiles = new ArrayList<>();
 
-
         if (message.senderId instanceof TdApi.MessageSenderUser messageSenderUser) {
             senderId = String.valueOf(messageSenderUser.userId);
+        } else {
+            senderId = "";
         }
 
         if (messageContent instanceof TdApi.MessageText messageText) {
@@ -61,38 +63,63 @@ public class TelegramApp {
 
             System.out.println("Message text: " + text);
         } else if (messageContent instanceof TdApi.MessagePhoto messagePhoto) {
+            text = messagePhoto.caption.text;
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+
             Arrays.stream(messagePhoto.photo.sizes)
                     .forEach(photoSize -> {
                         TdApi.File remote = photoSize.photo;
 
-                        downloadPhoto(remote, localFilePath -> {
-                            try {
-                                File file = new File(localFilePath);
-                                byte[] fileContent = Files.readAllBytes(file.toPath());
-                                images.add(fileContent);
-                                log.info("File content added to images list.");
-                            } catch (IOException exception) {
-                                log.error("Error reading file: {}", exception.getMessage());
-                            }
-                        });
+                        CompletableFuture<Void> future = downloadPhotoAsync(remote)
+                                .thenAccept(result -> {
+                                    pathToFiles.add(result);
+                                    try {
+                                        byte[] fileContent = Files.readAllBytes(Path.of(result));
+                                        images.add(fileContent);
+                                    } catch (IOException exception) {
+                                        log.error("Error reading file: {}", exception.getMessage());
+                                    }
+                                });
+
+                        futures.add(future);
                     });
+
+            String resultText = text;
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenRun(() -> {
+                        Chat createdChat = Chat.builder()
+                                .senderId(senderId)
+                                .chatId(chatId)
+                                .text(resultText)
+                                .time(time)
+                                .images(images)
+                                .pathToFiles(pathToFiles)
+                                .restData(message.toString())
+                                .build();
+
+                        chatRepository.save(createdChat);
+                        log.info("Chat saved successfully with images.");
+                    })
+                    .exceptionally(ex -> {
+                        log.error("Error while downloading images or saving chat: {}", ex.getMessage());
+                        return null;
+                    });
+        } else {
+            Chat createdChat = Chat.builder()
+                    .senderId(senderId)
+                    .chatId(chatId)
+                    .text(text)
+                    .time(time)
+                    .restData(message.toString())
+                    .build();
+
+            chatRepository.save(createdChat);
         }
-
-        log.info("images: {}", images);
-        Chat createdChat = Chat.builder()
-                .senderId(senderId)
-                .chatId(chatId)
-                .text(text)
-                .time(time)
-                .images(images)
-                .pathToFiles(pathToFiles)
-                .restData(message.toString())
-                .build();
-
-        chatRepository.save(createdChat);
     }
 
-    private void downloadPhoto(TdApi.File file, Consumer<String> onDownloadComplete) {
+    private CompletableFuture<String> downloadPhotoAsync(TdApi.File file) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+
         TdApi.DownloadFile downloadRequest = new TdApi.DownloadFile(file.id, 1, 0, 0, true);
 
         client.send(downloadRequest, fileResult -> {
@@ -101,11 +128,14 @@ public class TelegramApp {
             if (downloadedFile.local.isDownloadingCompleted) {
                 String localFilePath = downloadedFile.local.path;
                 log.info("File uploaded: {}", localFilePath);
-                onDownloadComplete.accept(localFilePath);
+                future.complete(localFilePath);
             } else {
                 log.info("File uploading has started...");
+                future.completeExceptionally(new RuntimeException("Download not completed"));
             }
         });
+
+        return future;
     }
 
     private void onStopCommand(TdApi.Chat chat, TdApi.MessageSender commandSender, String arguments) {
@@ -124,14 +154,20 @@ public class TelegramApp {
     }
 
     public TelegramApp(SimpleTelegramClientBuilder clientBuilder,
-                       SimpleAuthenticationSupplier<?> authenticationData,
-                       @Qualifier("adminId") long adminId, ChatRepository chatRepository) {
-        this.adminId = adminId;
+                       SimpleAuthenticationSupplier<?> authenticationData) {
         clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
         clientBuilder.addCommandHandler("stop", this::onStopCommand);
         clientBuilder.addUpdateHandler(TdApi.UpdateNewMessage.class, this::onUpdateHandler);
         this.client = clientBuilder.build(authenticationData);
-        this.chatRepository = chatRepository;
     }
 
+    @Autowired
+    private void setAdminId(@Qualifier("adminId") int adminId) {
+        this.adminId = adminId;
+    }
+
+    @Autowired
+    private void setChatRepository(ChatRepository chatRepository) {
+        this.chatRepository = chatRepository;
+    }
 }

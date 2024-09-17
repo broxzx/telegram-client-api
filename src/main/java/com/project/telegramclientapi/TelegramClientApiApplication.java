@@ -53,7 +53,7 @@ public class TelegramClientApiApplication {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.IMAGE_JPEG);
 
-        return new ResponseEntity<>(image.get(2), headers, HttpStatus.OK);
+        return new ResponseEntity<>(image.get(0), headers, HttpStatus.OK);
     }
 
     @PostMapping
