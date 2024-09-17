@@ -32,16 +32,15 @@ public class TelegramConfiguration {
 
     @Bean
     public SimpleTelegramClientBuilder adjustClient() {
-        try (SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory()) {
-            APIToken apiToken = getApiToken();
-            TDLibSettings settings = TDLibSettings.create(apiToken);
+        SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory();
+        APIToken apiToken = getApiToken();
+        TDLibSettings settings = TDLibSettings.create(apiToken);
 
-            Path sessionPath = Paths.get("./src/main/resources/tdlib-session-id-fyuizee");
-            settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
-            settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
+        Path sessionPath = Paths.get("./src/main/resources/tdlib-session-id-fyuizee");
+        settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
+        settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
-            return clientFactory.builder(settings);
-        }
+        return clientFactory.builder(settings);
     }
 
     @Bean

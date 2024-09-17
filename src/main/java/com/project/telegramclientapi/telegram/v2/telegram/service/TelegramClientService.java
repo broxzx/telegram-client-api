@@ -1,8 +1,6 @@
 package com.project.telegramclientapi.telegram.v2.telegram.service;
 
-import com.project.telegramclientapi.telegram.v2.config.TelegramConfiguration;
 import com.project.telegramclientapi.telegram.v2.telegram.TelegramApp;
-import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.client.SimpleTelegramClientFactory;
 import it.tdlight.jni.TdApi;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +16,10 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class TelegramClientService {
 
-    private final TelegramConfiguration telegramConfiguration;
-    private final SimpleTelegramClientBuilder clientBuilder;
+    private final TelegramApp app;
 
     public void adjustTelegramClient() {
         try (SimpleTelegramClientFactory ignored = new SimpleTelegramClientFactory()) {
-            TelegramApp app = AuthenticationService.initiateTelegramApp(clientBuilder, telegramConfiguration.getPhoneNumber());
-
             try {
                 TdApi.User me = app.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
                 sendMessageToFavourite(me, app);
