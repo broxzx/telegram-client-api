@@ -1,18 +1,22 @@
 package com.project.telegramclientapi.telegram.v2.telegram.service;
 
-import com.project.telegramclientapi.telegram.v2.telegram.TelegramApp;
-import it.tdlight.client.AuthenticationSupplier;
-import it.tdlight.client.SimpleAuthenticationSupplier;
-import it.tdlight.client.SimpleTelegramClientBuilder;
+import it.tdlight.jni.TdApi;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AuthenticationService {
 
-    public static TelegramApp initiateTelegramApp(SimpleTelegramClientBuilder clientBuilder,
-                                                  String phoneNumber) {
-        SimpleAuthenticationSupplier<?> authenticationData = AuthenticationSupplier.user(phoneNumber);
-        return new TelegramApp(clientBuilder, authenticationData);
+    public void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
+        TdApi.AuthorizationState authorizationState = update.authorizationState;
+        if (authorizationState instanceof TdApi.AuthorizationStateReady) {
+            System.out.println("Logged in");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateClosing) {
+            System.out.println("Closing...");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateClosed) {
+            System.out.println("Closed");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateLoggingOut) {
+            System.out.println("Logging out...");
+        }
     }
 
 }

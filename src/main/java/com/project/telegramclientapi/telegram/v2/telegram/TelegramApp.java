@@ -2,12 +2,14 @@ package com.project.telegramclientapi.telegram.v2.telegram;
 
 import com.project.telegramclientapi.telegram.v2.chat.model.Chat;
 import com.project.telegramclientapi.telegram.v2.chat.repository.ChatRepository;
+import com.project.telegramclientapi.telegram.v2.telegram.service.AuthenticationService;
 import it.tdlight.client.Result;
 import it.tdlight.client.SimpleAuthenticationSupplier;
 import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.client.SimpleTelegramClientBuilder;
 import it.tdlight.jni.TdApi;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,26 +25,14 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class TelegramApp {
 
     @Getter
     private final SimpleTelegramClient client;
+    private final ChatRepository chatRepository;
     @Value("${telegram.adminId}")
     private long adminId;
-    private ChatRepository chatRepository;
-
-    private void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
-        TdApi.AuthorizationState authorizationState = update.authorizationState;
-        if (authorizationState instanceof TdApi.AuthorizationStateReady) {
-            System.out.println("Logged in");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateClosing) {
-            System.out.println("Closing...");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateClosed) {
-            System.out.println("Closed");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateLoggingOut) {
-            System.out.println("Logging out...");
-        }
-    }
 
     private void onUpdateHandler(TdApi.UpdateNewMessage incomingMessage) {
         TdApi.Message message = incomingMessage.message;
@@ -166,13 +156,12 @@ public class TelegramApp {
     }
 
     @Autowired
-    private void setChatRepository(ChatRepository chatRepository) {
-        this.chatRepository = chatRepository;
-    }
-
     public TelegramApp(SimpleTelegramClientBuilder clientBuilder,
-                       SimpleAuthenticationSupplier<?> authenticationData) {
-        clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
+                       SimpleAuthenticationSupplier<?> authenticationData,
+                       ChatRepository chatRepository,
+                       AuthenticationService authenticationService) {
+        this.chatRepository = chatRepository;
+        clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, authenticationService::onUpdateAuthorizationState);
         clientBuilder.addCommandHandler("stop", this::onStopCommand);
         clientBuilder.addUpdateHandler(TdApi.UpdateNewMessage.class, this::onUpdateHandler);
         this.client = clientBuilder.build(authenticationData);
