@@ -1,6 +1,5 @@
 package com.project.telegramclientapi.config;
 
-import com.project.telegramclientapi.chat.repository.ChatRepository;
 import it.tdlight.client.*;
 import it.tdlight.jni.TdApi;
 import lombok.Getter;
@@ -17,7 +16,7 @@ import java.nio.file.Paths;
 @Getter
 @RequiredArgsConstructor
 @Slf4j
-public class TelegramConfiguration {
+public class TelegramConfig {
 
     @Value("${telegram.apiId}")
     private int apiId;
@@ -31,27 +30,22 @@ public class TelegramConfiguration {
     @Value("${telegram.adminId}")
     private long adminId;
 
-    private final ChatRepository chatRepository;
     private final AuthenticationConfig authenticationConfig;
-
-    private SimpleTelegramClient telegramClient;
-
+    private final AuthorizationStateHandler authorizationStateHandler;
 
     @Bean
     public SimpleTelegramClientBuilder adjustClient(TDLibSettings settings) {
         SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory();
-
         SimpleTelegramClientBuilder clientBuilder = clientFactory.builder(settings);
 
-        clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
+        clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, authorizationStateHandler::onUpdateAuthorizationState);
 
         return clientBuilder;
     }
 
     @Bean
     public SimpleTelegramClient simpleTelegramClientBuilder(SimpleTelegramClientBuilder clientBuilder) {
-        telegramClient = clientBuilder.build(authenticationConfig.simpleAuthenticationSupplier());
-        return telegramClient;
+        return clientBuilder.build(authenticationConfig.simpleAuthenticationSupplier());
     }
 
 
@@ -65,19 +59,5 @@ public class TelegramConfiguration {
         settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
         return settings;
-    }
-
-
-    public void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
-        TdApi.AuthorizationState authorizationState = update.authorizationState;
-        if (authorizationState instanceof TdApi.AuthorizationStateReady) {
-            System.out.println("Logged in");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateClosing) {
-            System.out.println("Closing...");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateClosed) {
-            System.out.println("Closed");
-        } else if (authorizationState instanceof TdApi.AuthorizationStateLoggingOut) {
-            System.out.println("Logging out...");
-        }
     }
 }
