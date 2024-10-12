@@ -37,50 +37,47 @@ public class TelegramApp {
     private void onUpdateHandler(TdApi.UpdateNewMessage incomingMessage) {
         TdApi.Message message = incomingMessage.message;
         TdApi.MessageContent messageContent = message.content;
+
+        handleUpdate(message, messageContent);
+    }
+
+    private void handleUpdate(TdApi.Message message, TdApi.MessageContent messageContent) {
         Chat chat = new Chat();
-
-        fillWithCommonData(chat, message);
-
         List<byte[]> images = new ArrayList<>();
         List<String> pathToFiles = new ArrayList<>();
 
-        if (message.senderId instanceof TdApi.MessageSenderUser messageSenderUser) {
-            handleMessageSenderUserData(messageSenderUser, chat);
-        }
+        fillWithCommonData(chat, message);
 
-        if (messageContent instanceof TdApi.MessageText messageText) {
-            handleMessageTextData(messageText, chat);
-        } else if (messageContent instanceof TdApi.MessagePhoto messagePhoto) {
-            handleMessagePhotoData(messagePhoto, chat, pathToFiles, images);
-        } else {
-            chatRepository.save(chat);
-        }
+        proccessMessageSenderUserData(message, chat);
+        processMessageTextData(messageContent, chat);
+        processMessagePhotoData(messageContent, chat, pathToFiles, images);
+        chatRepository.save(chat);
+
     }
 
-    private void handleMessagePhotoData(TdApi.MessagePhoto messagePhoto, Chat chat, List<String> pathToFiles, List<byte[]> images) {
-        chat.setText(messagePhoto.caption.text);
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+    private void processMessagePhotoData(TdApi.MessageContent messageContent, Chat chat, List<String> pathToFiles, List<byte[]> images) {
+        if (messageContent instanceof TdApi.MessagePhoto messagePhoto) {
+            chat.setText(messagePhoto.caption.text);
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        Arrays.stream(messagePhoto.photo.sizes)
-                .forEach(photoSize -> {
-                    TdApi.File remote = photoSize.photo;
-                    CompletableFuture<Void> future = savePhotoToLocalStorage(pathToFiles, images, remote);
+            Arrays.stream(messagePhoto.photo.sizes)
+                    .forEach(photoSize -> {
+                        TdApi.File remote = photoSize.photo;
+                        CompletableFuture<Void> future = savePhotoToLocalStorage(pathToFiles, images, remote);
 
-                    futures.add(future);
-                });
+                        futures.add(future);
+                    });
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenRun(() -> {
-                    chat.setImages(images);
-                    chat.setPathToFiles(pathToFiles);
-
-                    chatRepository.save(chat);
-                    log.info("Chat saved successfully with images.");
-                })
-                .exceptionally(ex -> {
-                    log.error("Error while downloading images or saving chat: {}", ex.getMessage());
-                    return null;
-                });
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenRun(() -> {
+                        chat.setImages(images);
+                        chat.setPathToFiles(pathToFiles);
+                    })
+                    .exceptionally(ex -> {
+                        log.error("Error while downloading images or saving chat: {}", ex.getMessage());
+                        return null;
+                    });
+        }
     }
 
     private CompletableFuture<Void> savePhotoToLocalStorage(List<String> pathToFiles, List<byte[]> images, TdApi.File remote) {
@@ -96,17 +93,18 @@ public class TelegramApp {
                 });
     }
 
-    private void handleMessageTextData(TdApi.MessageText messageText, Chat chat) {
-        TdApi.FormattedText formattedText = messageText.text;
-        String text = formattedText.text;
-        chat.setText(text); // text
-
-        chatRepository.save(chat);
-        System.out.println("Message text: " + text);
+    private void processMessageTextData(TdApi.MessageContent messageContent, Chat chat) {
+        if (messageContent instanceof TdApi.MessageText messageText) {
+            TdApi.FormattedText formattedText = messageText.text;
+            String text = formattedText.text;
+            chat.setText(text);
+        }
     }
 
-    private static void handleMessageSenderUserData(TdApi.MessageSenderUser messageSenderUser, Chat chat) {
-        chat.setSenderId(String.valueOf(messageSenderUser.userId)); // senderId
+    private static void proccessMessageSenderUserData(TdApi.Message message, Chat chat) {
+        if (message.senderId instanceof TdApi.MessageSenderUser messageSenderUser) {
+            chat.setSenderId(String.valueOf(messageSenderUser.userId)); // senderId
+        }
     }
 
     private CompletableFuture<String> downloadPhotoAsync(TdApi.File file) {
@@ -114,9 +112,7 @@ public class TelegramApp {
 
         TdApi.DownloadFile downloadRequest = new TdApi.DownloadFile(file.id, 1, 0, 0, true);
 
-        client.send(downloadRequest, fileResult -> {
-            sendRequestGetPhotoTDApi(fileResult, future);
-        });
+        client.send(downloadRequest, fileResult -> sendRequestGetPhotoTDApi(fileResult, future));
 
         return future;
     }

@@ -6,6 +6,10 @@ services:
     image: mongo:7.0-jammy
     ports:
       - "27017:27017"
+    deploy:
+      resources:
+        limits:
+          memory: 500M
     environment:
       MONGO_INITDB_DATABASE: tg-client
     volumes:
