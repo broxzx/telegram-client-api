@@ -2,6 +2,7 @@ package com.project.telegramclientapi.config;
 
 import it.tdlight.client.*;
 import it.tdlight.jni.TdApi;
+import jakarta.annotation.PreDestroy;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,9 +34,11 @@ public class TelegramConfig {
     private final AuthenticationConfig authenticationConfig;
     private final AuthorizationStateHandler authorizationStateHandler;
 
+    private SimpleTelegramClientFactory clientFactory;
+
     @Bean
     public SimpleTelegramClientBuilder adjustClient(TDLibSettings settings) {
-        SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory();
+        this.clientFactory = new SimpleTelegramClientFactory();
         SimpleTelegramClientBuilder clientBuilder = clientFactory.builder(settings);
 
         clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, authorizationStateHandler::onUpdateAuthorizationState);
@@ -59,5 +62,13 @@ public class TelegramConfig {
         settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
         return settings;
+    }
+
+    @PreDestroy
+    public void clientFactoryTearDown() {
+        if (clientFactory != null) {
+            log.info("closing client factory!");
+            this.clientFactory.close();
+        }
     }
 }
