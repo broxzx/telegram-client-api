@@ -1,8 +1,11 @@
 package com.project.telegramclientapi.config;
 
+import com.project.telegramclientapi.chat.repository.ChatRepository;
 import it.tdlight.client.*;
+import it.tdlight.jni.TdApi;
 import lombok.Getter;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +15,8 @@ import java.nio.file.Paths;
 
 @Configuration
 @Getter
+@RequiredArgsConstructor
+@Slf4j
 public class TelegramConfiguration {
 
     @Value("${telegram.apiId}")
@@ -26,37 +31,53 @@ public class TelegramConfiguration {
     @Value("${telegram.adminId}")
     private long adminId;
 
-    public APIToken getApiToken() {
-        return new APIToken(apiId, apiHash);
+    private final ChatRepository chatRepository;
+    private final AuthenticationConfig authenticationConfig;
+
+    private SimpleTelegramClient telegramClient;
+
+
+    @Bean
+    public SimpleTelegramClientBuilder adjustClient(TDLibSettings settings) {
+        SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory();
+
+        SimpleTelegramClientBuilder clientBuilder = clientFactory.builder(settings);
+
+        clientBuilder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onUpdateAuthorizationState);
+
+        return clientBuilder;
     }
 
     @Bean
-    public SimpleTelegramClientBuilder adjustClient() {
-        SimpleTelegramClientFactory clientFactory = new SimpleTelegramClientFactory();
-        APIToken apiToken = getApiToken();
+    public SimpleTelegramClient simpleTelegramClientBuilder(SimpleTelegramClientBuilder clientBuilder) {
+        telegramClient = clientBuilder.build(authenticationConfig.simpleAuthenticationSupplier());
+        return telegramClient;
+    }
+
+
+    @Bean
+    public TDLibSettings tdLibSettings() {
+        APIToken apiToken = new APIToken(apiId, apiHash);
         TDLibSettings settings = TDLibSettings.create(apiToken);
 
         Path sessionPath = Paths.get("./src/main/resources/tdlib-session-id-fyuizee");
         settings.setDatabaseDirectoryPath(sessionPath.resolve("data"));
         settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"));
 
-        return clientFactory.builder(settings);
+        return settings;
     }
 
-    @Bean
-    public SimpleAuthenticationSupplier<?> simpleAuthenticationSupplier() {
-        return AuthenticationSupplier.user(this.phoneNumber);
-    }
 
-    @Bean
-    @Qualifier("adminId")
-    public long adminId() {
-        return this.adminId;
-    }
-
-    @Bean
-    @Qualifier("phoneNumber")
-    public String phoneNumber() {
-        return this.phoneNumber;
+    public void onUpdateAuthorizationState(TdApi.UpdateAuthorizationState update) {
+        TdApi.AuthorizationState authorizationState = update.authorizationState;
+        if (authorizationState instanceof TdApi.AuthorizationStateReady) {
+            System.out.println("Logged in");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateClosing) {
+            System.out.println("Closing...");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateClosed) {
+            System.out.println("Closed");
+        } else if (authorizationState instanceof TdApi.AuthorizationStateLoggingOut) {
+            System.out.println("Logging out...");
+        }
     }
 }

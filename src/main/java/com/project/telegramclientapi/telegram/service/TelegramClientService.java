@@ -1,42 +1,137 @@
 package com.project.telegramclientapi.telegram.service;
 
-import com.project.telegramclientapi.telegram.TelegramApp;
-import it.tdlight.client.SimpleTelegramClientFactory;
+import com.project.telegramclientapi.chat.model.Chat;
+import com.project.telegramclientapi.chat.repository.ChatRepository;
+import it.tdlight.client.Result;
+import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.jni.TdApi;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class TelegramClientService {
 
-    private final TelegramApp app;
+    @Autowired
+    private ChatRepository chatRepository;
+    private SimpleTelegramClient telegramClient;
 
-    public void adjustTelegramClient() {
-        try (SimpleTelegramClientFactory ignored = new SimpleTelegramClientFactory()) {
-            try {
-                TdApi.User me = app.getClient().getMeAsync().get(1, TimeUnit.MINUTES);
-                sendMessageToFavourite(me, app);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-            }
+    public void onUpdateHandler(TdApi.UpdateNewMessage incomingMessage) {
+        TdApi.Message message = incomingMessage.message;
+        TdApi.MessageContent messageContent = message.content;
+        log.info("onUpdateHandler");
+
+        handleUpdate(message, messageContent);
+    }
+
+    private void handleUpdate(TdApi.Message message, TdApi.MessageContent messageContent) {
+        Chat chat = new Chat();
+        List<byte[]> images = new ArrayList<>();
+        List<String> pathToFiles = new ArrayList<>();
+
+        fillWithCommonData(chat, message);
+        processMessageSenderUserData(message, chat);
+        processMessageTextData(messageContent, chat);
+        processMessagePhotoData(messageContent, chat, pathToFiles, images);
+
+        chatRepository.save(chat);
+    }
+
+    private void processMessagePhotoData(TdApi.MessageContent messageContent, Chat chat, List<String> pathToFiles, List<byte[]> images) {
+        if (messageContent instanceof TdApi.MessagePhoto messagePhoto) {
+            chat.setText(messagePhoto.caption.text);
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+            Arrays.stream(messagePhoto.photo.sizes)
+                    .forEach(photoSize -> {
+                        TdApi.File remote = photoSize.photo;
+                        CompletableFuture<Void> future = savePhotoToLocalStorage(pathToFiles, images, remote);
+
+                        futures.add(future);
+                    });
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenRun(() -> {
+                        chat.setImages(images);
+                        chat.setPathToFiles(pathToFiles);
+                    })
+                    .exceptionally(ex -> {
+                        log.error("Error while downloading images or saving chat: {}", ex.getMessage());
+                        return null;
+                    });
         }
     }
 
-    private void sendMessageToFavourite(TdApi.User me, TelegramApp app) throws InterruptedException, ExecutionException, TimeoutException {
-        TdApi.Chat savedMessagesChat = app.getClient().send(new TdApi.CreatePrivateChat(me.id, true)).get(1, TimeUnit.MINUTES);
-        TdApi.SendMessage req = new TdApi.SendMessage();
-        req.chatId = savedMessagesChat.id;
-        TdApi.InputMessageText txt = new TdApi.InputMessageText();
-        txt.text = new TdApi.FormattedText("TDLight test", new TdApi.TextEntity[0]);
-        req.inputMessageContent = txt;
-        TdApi.Message result = app.getClient().sendMessage(req, true).get(1, TimeUnit.MINUTES);
+    private CompletableFuture<Void> savePhotoToLocalStorage(List<String> pathToFiles, List<byte[]> images, TdApi.File remote) {
+        return downloadPhotoAsync(remote, telegramClient)
+                .thenAccept(result -> {
+                    pathToFiles.add(result);
+                    try {
+                        byte[] fileContent = Files.readAllBytes(Path.of(result));
+                        images.add(fileContent);
+                    } catch (IOException exception) {
+                        log.error("Error reading file: {}", exception.getMessage());
+                    }
+                });
+    }
+
+    private void processMessageTextData(TdApi.MessageContent messageContent, Chat chat) {
+        if (messageContent instanceof TdApi.MessageText messageText) {
+            TdApi.FormattedText formattedText = messageText.text;
+            String text = formattedText.text;
+            chat.setText(text);
+        }
+    }
+
+    private static void processMessageSenderUserData(TdApi.Message message, Chat chat) {
+        if (message.senderId instanceof TdApi.MessageSenderUser messageSenderUser) {
+            chat.setSenderId(String.valueOf(messageSenderUser.userId)); // senderId
+        }
+    }
+
+    private CompletableFuture<String> downloadPhotoAsync(TdApi.File file, SimpleTelegramClient client) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+
+        TdApi.DownloadFile downloadRequest = new TdApi.DownloadFile(file.id, 1, 0, 0, true);
+
+        client.send(downloadRequest, fileResult -> sendRequestGetPhotoTDApi(fileResult, future));
+
+        return future;
+    }
+
+    private static void sendRequestGetPhotoTDApi(Result<TdApi.File> fileResult, CompletableFuture<String> future) {
+        TdApi.File downloadedFile = fileResult.get();
+
+        if (downloadedFile.local.isDownloadingCompleted) {
+            String localFilePath = downloadedFile.local.path;
+            log.info("File uploaded: {}", localFilePath);
+            future.complete(localFilePath);
+        } else {
+            log.info("File uploading has started...");
+            future.completeExceptionally(new RuntimeException("Download not completed"));
+        }
+    }
+
+    private void fillWithCommonData(Chat chat, TdApi.Message message) {
+        chat.setChatId(String.valueOf(message.chatId));
+        chat.setTime(message.date);
+        chat.setRestData(message.toString());
+        chat.setCreatedAt(LocalDateTime.now());
+    }
+
+    public TelegramClientService(SimpleTelegramClient simpleTelegramClient) {
+        simpleTelegramClient.addUpdateHandler(TdApi.UpdateNewMessage.class, this::onUpdateHandler);
+        this.telegramClient = simpleTelegramClient;
     }
 
 }
