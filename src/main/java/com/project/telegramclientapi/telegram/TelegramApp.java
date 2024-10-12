@@ -1,8 +1,8 @@
-package com.project.telegramclientapi.telegram.v2.telegram;
+package com.project.telegramclientapi.telegram;
 
-import com.project.telegramclientapi.telegram.v2.chat.model.Chat;
-import com.project.telegramclientapi.telegram.v2.chat.repository.ChatRepository;
-import com.project.telegramclientapi.telegram.v2.telegram.service.AuthenticationService;
+import com.project.telegramclientapi.chat.model.Chat;
+import com.project.telegramclientapi.chat.repository.ChatRepository;
+import com.project.telegramclientapi.telegram.service.AuthenticationService;
 import it.tdlight.client.Result;
 import it.tdlight.client.SimpleAuthenticationSupplier;
 import it.tdlight.client.SimpleTelegramClient;

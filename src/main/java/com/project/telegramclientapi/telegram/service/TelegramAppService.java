@@ -1,4 +1,4 @@
-package com.project.telegramclientapi.telegram.v2.telegram.service;
+package com.project.telegramclientapi.telegram.service;
 
 import it.tdlight.Init;
 import it.tdlight.Log;

@@ -1,4 +1,4 @@
-package com.project.telegramclientapi.telegram.v2.config;
+package com.project.telegramclientapi.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;

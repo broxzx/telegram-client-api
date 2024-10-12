@@ -1,4 +1,4 @@
-package com.project.telegramclientapi.telegram.v2.chat.model;
+package com.project.telegramclientapi.chat.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

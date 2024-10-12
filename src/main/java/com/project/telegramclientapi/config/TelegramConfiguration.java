@@ -1,4 +1,4 @@
-package com.project.telegramclientapi.telegram.v2.config;
+package com.project.telegramclientapi.config;
 
 import it.tdlight.client.*;
 import lombok.Getter;

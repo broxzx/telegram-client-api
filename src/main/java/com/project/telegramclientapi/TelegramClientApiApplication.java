@@ -1,7 +1,7 @@
 package com.project.telegramclientapi;
 
-import com.project.telegramclientapi.telegram.v2.chat.repository.ChatRepository;
-import com.project.telegramclientapi.telegram.v2.telegram.service.TelegramAppService;
+import com.project.telegramclientapi.chat.repository.ChatRepository;
+import com.project.telegramclientapi.telegram.service.TelegramAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

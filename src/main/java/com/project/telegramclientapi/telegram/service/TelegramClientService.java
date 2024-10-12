@@ -1,6 +1,6 @@
-package com.project.telegramclientapi.telegram.v2.telegram.service;
+package com.project.telegramclientapi.telegram.service;
 
-import com.project.telegramclientapi.telegram.v2.telegram.TelegramApp;
+import com.project.telegramclientapi.telegram.TelegramApp;
 import it.tdlight.client.SimpleTelegramClientFactory;
 import it.tdlight.jni.TdApi;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,6 @@ public class TelegramClientService {
         txt.text = new TdApi.FormattedText("TDLight test", new TdApi.TextEntity[0]);
         req.inputMessageContent = txt;
         TdApi.Message result = app.getClient().sendMessage(req, true).get(1, TimeUnit.MINUTES);
-        System.out.println("Sent message:" + result);
     }
 
 }
