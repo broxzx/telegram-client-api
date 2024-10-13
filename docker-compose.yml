@@ -4,6 +4,7 @@ services:
   tg-client-api-mongodb:
     container_name: tg-client-api-mongodb
     image: mongo:7.0-jammy
+    restart: unless-stopped
     ports:
       - "27017:27017"
     deploy:
