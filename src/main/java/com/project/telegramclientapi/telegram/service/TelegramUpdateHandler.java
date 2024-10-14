@@ -1,6 +1,6 @@
 package com.project.telegramclientapi.telegram.service;
 
-import com.project.telegramclientapi.chat.repository.ChatRepository;
+import com.project.telegramclientapi.chat.services.ChatRepository;
 import com.project.telegramclientapi.telegram.TelegramMessageProcessor;
 import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.jni.TdApi;

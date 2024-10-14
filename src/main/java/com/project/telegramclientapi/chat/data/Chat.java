@@ -1,5 +1,7 @@
-package com.project.telegramclientapi.chat.model;
+package com.project.telegramclientapi.chat.data;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import it.tdlight.jni.TdApi;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,12 +31,12 @@ public class Chat {
 
     private Integer time;
 
-    private List<byte[]> images;
-
     private List<String> pathToFiles;
 
+    @JsonIgnore
     private String restData;
 
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
     public Chat(TdApi.Message message) {

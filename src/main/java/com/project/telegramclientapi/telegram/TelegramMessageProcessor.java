@@ -1,6 +1,6 @@
 package com.project.telegramclientapi.telegram;
 
-import com.project.telegramclientapi.chat.model.Chat;
+import com.project.telegramclientapi.chat.data.Chat;
 import it.tdlight.client.Result;
 import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.jni.TdApi;
@@ -33,7 +33,6 @@ public class TelegramMessageProcessor {
             CompletableFuture<Void> processingFuture = processMessagePhoto(messagePhoto);
 
             return processingFuture.thenRun(() -> {
-                chat.setImages(images);
                 chat.setPathToFiles(pathToFiles);
                 log.info("All images successfully processed and saved.");
             }).exceptionally(ex -> {
