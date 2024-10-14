@@ -12,7 +12,7 @@ services:
         limits:
           memory: 500M
     environment:
-      MONGO_INITDB_DATABASE: tg-client
+      MONGO_INITDB_DATABASE: telegram
     volumes:
       - tg-client-api-mongodb:/data/db
 

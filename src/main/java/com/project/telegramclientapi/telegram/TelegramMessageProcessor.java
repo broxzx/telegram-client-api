@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,7 +22,7 @@ public class TelegramMessageProcessor {
 
     private final SimpleTelegramClient telegramClient;
 
-    private Chat chat = new Chat();
+    private Chat chat;
     private List<byte[]> images;
     private List<String> pathToFiles;
 
@@ -30,13 +30,7 @@ public class TelegramMessageProcessor {
         if (messageContent instanceof TdApi.MessagePhoto messagePhoto) {
             chat.setText(messagePhoto.caption.text);
 
-            CompletableFuture<Void> processingFuture = CompletableFuture.completedFuture(null);
-
-            for (TdApi.PhotoSize photoSize : messagePhoto.photo.sizes) {
-                TdApi.File remote = photoSize.photo;
-
-                processingFuture = processingFuture.thenCompose(ignored -> savePhotoToLocalStorage(remote));
-            }
+            CompletableFuture<Void> processingFuture = processMessagePhoto(messagePhoto);
 
             return processingFuture.thenRun(() -> {
                 chat.setImages(images);
@@ -51,14 +45,27 @@ public class TelegramMessageProcessor {
         return CompletableFuture.completedFuture(null);
     }
 
+    private CompletableFuture<Void> processMessagePhoto(TdApi.MessagePhoto messagePhoto) {
+        CompletableFuture<Void> processingFuture = CompletableFuture.completedFuture(null);
+
+        for (TdApi.PhotoSize photoSize : messagePhoto.photo.sizes) {
+            TdApi.File remote = photoSize.photo;
+            processingFuture = processingFuture.thenCompose(ignored -> savePhotoToLocalStorage(remote));
+        }
+
+        return processingFuture;
+    }
+
     private CompletableFuture<Void> savePhotoToLocalStorage(TdApi.File remote) {
         return downloadPhotoAsync(remote, telegramClient)
                 .thenAccept(result -> {
                     if (result != null) {
                         try {
-                            byte[] fileContent = Files.readAllBytes(Path.of(result));
+                            Path sourcePath = Paths.get(result);
+                            byte[] fileContent = Files.readAllBytes(sourcePath);
                             images.add(fileContent);
                             pathToFiles.add(result);
+
                             log.info("Image successfully downloaded and saved at {}", result);
                         } catch (IOException exception) {
                             log.error("Error reading file from path {}: {}", result, exception.getMessage());
@@ -108,17 +115,11 @@ public class TelegramMessageProcessor {
         }
     }
 
-    public void fillWithCommonData(TdApi.Message message) {
-        chat.setChatId(String.valueOf(message.chatId));
-        chat.setTime(message.date);
-        chat.setRestData(message.toString());
-        chat.setCreatedAt(LocalDateTime.now());
-    }
-
-    public TelegramMessageProcessor(SimpleTelegramClient telegramClient) {
+    public TelegramMessageProcessor(SimpleTelegramClient telegramClient, TdApi.UpdateNewMessage incomingMessage) {
         this.telegramClient = telegramClient;
-        images = Collections.synchronizedList(new ArrayList<>());
-        pathToFiles = Collections.synchronizedList(new ArrayList<>());
+        this.images = Collections.synchronizedList(new ArrayList<>());
+        this.pathToFiles = Collections.synchronizedList(new ArrayList<>());
+        this.chat = new Chat(incomingMessage.message);
     }
 
 }

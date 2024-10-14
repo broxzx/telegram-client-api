@@ -1,5 +1,6 @@
 package com.project.telegramclientapi.chat.model;
 
+import it.tdlight.jni.TdApi;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,5 +36,12 @@ public class Chat {
     private String restData;
 
     private LocalDateTime createdAt;
+
+    public Chat(TdApi.Message message) {
+        this.chatId = String.valueOf(message.chatId);
+        this.time = message.date;
+        this.restData = message.toString();
+        this.createdAt = LocalDateTime.now();
+    }
 
 }

@@ -10,11 +10,4 @@ public class TelegramClientApiApplication {
         SpringApplication.run(TelegramClientApiApplication.class, args);
     }
 
-//    @Bean
-//    public CommandLineRunner commandLineRunner(TelegramAppService telegramAppService) {
-//        return args -> {
-//            telegramAppService.initialize();
-//        };
-//    }
-
 }

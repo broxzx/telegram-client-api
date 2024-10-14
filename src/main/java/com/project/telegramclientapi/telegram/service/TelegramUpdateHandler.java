@@ -15,17 +15,15 @@ public class TelegramUpdateHandler {
     private final SimpleTelegramClient telegramClient;
 
     public void onUpdateHandler(TdApi.UpdateNewMessage incomingMessage) {
-        TdApi.Message message = incomingMessage.message;
-        TdApi.MessageContent messageContent = message.content;
         log.info("onUpdateHandler");
 
-        handleUpdate(message, messageContent);
+        handleUpdate(incomingMessage);
     }
 
-    private void handleUpdate(TdApi.Message message, TdApi.MessageContent messageContent) {
-        TelegramMessageProcessor telegramMessageProcessor = new TelegramMessageProcessor(telegramClient);
-
-        telegramMessageProcessor.fillWithCommonData(message);
+    private void handleUpdate(TdApi.UpdateNewMessage incomingMessage) {
+        TelegramMessageProcessor telegramMessageProcessor = new TelegramMessageProcessor(telegramClient, incomingMessage);
+        TdApi.Message message = incomingMessage.message;
+        TdApi.MessageContent messageContent = message.content;
 
         telegramMessageProcessor.processMessagePhotoData(messageContent)
                 .thenRun(() -> {
